@@ -112,8 +112,8 @@
    lst))
 
 (defun flycheck-elm-package-json-directory (&optional checker)
-  "Find the directory in which CHECKER should run \"elm-make\"."
-  (locate-dominating-file default-directory "elm-package.json"))
+  "Find the directory in which CHECKER should run \"elm make\"."
+  (locate-dominating-file default-directory "elm.json"))
 
 (flycheck-def-option-var flycheck-elm-output-file nil elm
   "The output file to compile to when performing syntax checking.
@@ -122,7 +122,7 @@ The value of this variable is either nil, or a string with the
 path to the desired compilation output file.
 
 If nil, flycheck-elm will compile to `/dev/null' so as to not
-interfere with your project files. Elm-make has special logic
+interfere with your project files. elm make has special logic
 to handle /dev/null, hence the use of /dev/null instead of `null-device' even
 on Windows.
 See commit: https://github.com/elm-lang/elm-make/commit/ddcd4980fac9127c91c1de373c310155de9fa558
@@ -146,8 +146,8 @@ project. The main elm file is the .elm file which contains a
   :type '(string))
 
 (flycheck-define-checker elm
-  "A syntax checker for elm-mode using the json output from elm-make"
-  :command ("elm-make" "--report=json"
+  "A syntax checker for elm-mode using the json output from elm make"
+  :command ("elm" "make" "--report=json"
             (eval (or flycheck-elm-main-file buffer-file-name))
             (eval (concat  "--output=" (or flycheck-elm-output-file "/dev/null"))))
   :error-parser flycheck-elm-parse-errors
