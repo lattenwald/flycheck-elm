@@ -49,21 +49,28 @@
           (const :tag "Show warnings only if no errors occur." warn-after-errors))
   :group 'flycheck-elm)
 
+(defun flycheck-elm-flatten-error-message (msg)
+  (mapconcat
+   (lambda (s)
+     (cond ((stringp s) s)
+           ((listp s) (cdr (assoc 'string s)))))
+   msg ""))
+
 (defun flycheck-elm-decode-elm-error (error checker buffer)
   (let* ((region (assoc 'region error))
-         (tag (concat "[" (cdr (assoc 'tag error)) "]"))
-         (overview (cdr (assoc 'overview error)))
-         (details (cdr (assoc 'details error)))
+         (message (cdr (assoc 'message error)))
          (start (assoc 'start region))
          (start-col (cdr (assoc 'column start)))
-         (start-line (cdr (assoc 'line start))))
+         (start-line (cdr (assoc 'line start)))
+         (filename (cdr (assoc 'path error))))
     (flycheck-error-new
      :checker checker
      :buffer buffer
      :filename (cdr (assoc 'file error))
      :line start-line
      :column start-col
-     :message (mapconcat 'identity (list tag overview details) "\n")
+     :message (flycheck-elm-flatten-error-message message)
+     :filename filename
      :level (flycheck-elm-decode-type error))))
 
 (defun flycheck-elm-decode-type (error)
@@ -71,24 +78,36 @@
     (pcase type
       (`"warning" 'warning)
       (`"error" 'error)
+      (`"compile-errors" 'error)
       (_ 'unknown))))
 
 (defun flycheck-elm-read-json (str)
-  (condition-case nil
-      (json-read-from-string str)
-    (error nil)))
+  (let* ((json-array-type 'list))
+    (condition-case nil
+        (json-read-from-string str)
+      (error nil))))
 
 (defun flycheck-elm-parse-error-data (data)
   (let* ((json-array-type 'list)
          (mapdata (mapcar
                    'flycheck-elm-read-json
                    (split-string data "\n"))))
-    (append (car mapdata) (car (cdr mapdata)))))
+    (car mapdata)))
 
 (defun flycheck-elm-parse-errors (output checker buffer)
   "Decode elm json output errors."
   (let* ((data (flycheck-elm-parse-error-data output))
-         (errors (flycheck-elm-filter-by-preference data)))
+         (errors-type (assoc 'type data))
+         (unfiltered-errors
+          (car (cdr (assoc 'errors data))))
+         (path (assoc 'path unfiltered-errors))
+         (problems (cdr (assoc 'problems unfiltered-errors)))
+         (errors (mapcar (lambda (e)
+                           (let* ((e1 (add-to-list 'e path))
+                                  (e2 (add-to-list 'e1 errors-type)))
+                             e2))
+                         problems))
+         )
     (mapcar
      (lambda (x) (flycheck-elm-decode-elm-error x checker buffer))
      errors)))
